@@ -4,59 +4,53 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content ="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map User Location</title>
-
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
-
-<!-- Make sure you put this AFTER Leaflet's CSS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
-
+    <title>Live Laptop Location Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        #map { height: 350px; }
+        #map { height: 400px; width: 100%; }
     </style>
-
-
 </head>
 <body>
-
-    <h1>Map User Location</h1>
-
+    <h1>Your Live Location on Map</h1>
     <div id="map"></div>
-    
-</body>
-<script>
+    <script>
+        var map = L.map('map').setView([20, 77], 5); // Default India center
 
-    var map = L.map('map').setView([51.505, -0.09], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+        let marker, circle;
 
-    mapMarkers1 = [];
+        function success(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
 
-    var source  = new EventSource('/topic/geodata_final');
-    source.addEventListener('message', function(e){
-
-        console.log('Message');
-        obj = JSON.parse(e.data);
-        console.log(obj);
-
-        if(obj.busline = '00001'){
-            for(var i = 0; i < mapMarkers1.length; i++){
-                mymap.removeLayer(myMapmarker1[i]);
+            if (marker) {
+                map.removeLayer(marker);
+                map.removeLayer(circle);
             }
-            marker1 = L.marker([obj.latitude, obj.longitude]).addTo(mymap);
-            mapMarkers1.push(marker1);
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup("You are here!").openPopup();
+            circle = L.circle([lat, lng], { radius: accuracy }).addTo(map);
+
+            map.setView([lat, lng], 16);
         }
 
-    },flase);
+        function error(err) {
+            alert("Could not get your location. Error: " + err.message);
+        }
 
-
-</script>
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(success, error, {
+                enableHighAccuracy: true
+            });
+        } else {
+            alert("Geolocation is not supported by your browser.");
+        }
+    </script>
+</body>
 </html>
