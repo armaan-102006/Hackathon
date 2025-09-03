@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head><title>Send My Location</title></head>
+<body>
+<button onclick="start()">Start Sending Location</button>
+
+<script>
+let socket, watchId;
+
+function start() {
+  socket = new WebSocket('ws://172.17.35.25:8080'); // use your server IP
+
+  socket.onopen = () => {
+    if ('geolocation' in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+            }));
+          }
+        },
+        (err) => {
+          console.error('Geolocation error:', err);
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert('Geolocation not supported');
+    }
+  };
+
+  socket.onclose = () => {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+  };
+
+  socket.onerror = (err) => {
+    console.error('WebSocket error:', err);
+  };
+}
+</script>
+
+</body>
+</html>
