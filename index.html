@@ -25,12 +25,15 @@
         let marker, circle;
 
         // Connect to WebSocket server
-        const socket = new WebSocket("ws://172.17.35.25:8080");//Replace with ur ip
+        const socket = new WebSocket("ws://<YOUR IP>:8080");//Replace with ur ip
         socket.onmessage = function(event) {
             let pos = JSON.parse(event.data);
             const lat = pos.latitude;
             const lng = pos.longitude;
             const accuracy = pos.accuracy;
+            let speed = pos.speed;
+            let SpeedStr = (typeof speed === 'number' && !isNaN(speed))? `${(spped * 3.6).toFixed(2)} km/h`:"not available";
+            //convert m/s to km/h
 
             if (marker) {
                 map.removeLayer(marker);
