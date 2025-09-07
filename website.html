@@ -817,7 +817,7 @@
         startGeo();
         startDemoIfIdle();
         // Replace with your Python server IP and port
-        const ws = new WebSocket('ws://<PYTHON_SERVER_IP>:8765');
+        const ws = new WebSocket('wss://953638f3a86d.ngrok-free.app');
 
         ws.addEventListener("open", () => {
             console.log("Connected to Python WebSocket server");
@@ -856,3 +856,4 @@
 </body>
 
 </html>
+
