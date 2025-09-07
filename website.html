@@ -816,6 +816,42 @@
         initSelects();
         startGeo();
         startDemoIfIdle();
+        // Replace with your Python server IP and port
+        const ws = new WebSocket('ws://<PYTHON_SERVER_IP>:8765');
+
+        ws.addEventListener("open", () => {
+            console.log("Connected to Python WebSocket server");
+        });
+
+        ws.addEventListener("message", (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                // Update speed display
+                if (data.speed !== undefined && data.speed !== null) {
+                    const speed = Number(data.speed);
+                    speedVal.textContent = isFinite(speed) ? speed.toFixed(0) : '--';
+                    speedFabVal.textContent = isFinite(speed) ? `${speed.toFixed(0)} km/h` : '-- km/h';
+                }
+
+                // Update ETA display if available
+                if (data.eta !== undefined && data.eta !== null) {
+                    etaVal.textContent = `${data.eta} min`;
+                }
+
+
+            } catch (err) {
+                console.error("Error parsing WebSocket message:", err);
+            }
+        });
+
+        ws.addEventListener("close", () => {
+            console.log("Disconnected from Python WebSocket server");
+        });
+
+        ws.addEventListener("error", (err) => {
+            console.error("WebSocket error:", err);
+        });
     </script>
 </body>
 
