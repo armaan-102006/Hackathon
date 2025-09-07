@@ -1,76 +1,110 @@
 import asyncio
+import json
 import requests
 import websockets
-from websockets.asyncio.server import serve
 
+clients = set()  # Track connected clients
 
-class bus:
-    def __init__(self,stop_count, long, lat,stops_list=[]):
-        self.stop_count=stop_count
-        self.long=long
-        self.lat=lat
-        self.stops_list=stops_list
-    
+# Your bus class remains the same (you can keep or adjust as needed)
+class Bus:
+    def __init__(self, stop_count, long, lat, stops_list=None):
+        self.stop_count = stop_count
+        self.long = long
+        self.lat = lat
+        self.stops_list = stops_list or []
+
     @property
-    def stops__list(self):
+    def stops_list_prop(self):
         return self.stops_list
-    
-    @stops__list.setter#for adding more stops in total stops
-    def stops__list(self,*args):
-        #assert len(args)==1
-        new_stop=[[long,lat] for long,lat in args]
-        if self.stops_list==[]:
-            self.stops_list=new_stop
+
+    @stops_list_prop.setter
+    def stops_list_prop(self, *args):
+        new_stop = [[lng, lat] for lng, lat in args]
+        if not self.stops_list:
+            self.stops_list = new_stop
         else:
             self.stops_list.append(new_stop[0])
         return self.stops_list
 
-global bus1
-bus1=bus(4, 76.369777, 30.354376)
+bus1 = Bus(4, 76.369777, 30.354376)
 
-
+choice = None
 def bus_choice(bus_):
     global choice
-    choice=bus(bus_.stop_count,bus_.long,bus_.lat)
+    choice = Bus(bus_.stop_count, bus_.long, bus_.lat, bus_.stops_list)
     return choice
 
 bus_choice(bus1)
+choice.stops_list_prop = (76.3922, 30.33625)
 
-choice.stops__list=(76.3922, 30.33625)
+# Helper function: call OpenRouteService API to get distances
+def get_distances(stops):
+    headers = {
+        "Authorization": "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjU5YjczMDZjNTI5MjQ2NThiZGFlYzA5Yjg0YWFiZGQ0IiwiaCI6Im11cm11cjY0In0=",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "locations": stops,
+        "id": "request",
+        "metrics": ["distance"],
+        "sources": [0],
+        "units": "km"
+    }
+    response = requests.post("https://api.openrouteservice.org/v2/matrix/driving-car", headers=headers, json=data)
+    return response.json()['distances'][0]  # return the distances row
 
+# WebSocket handler coroutine
+async def handler(websocket, path):
+    # Register client
+    clients.add(websocket)
+    try:
+        async for message in websocket:
+            # Receive live position update from send.html
+            data = json.loads(message)
 
+            # Update current bus location
+            choice.long = data.get('longitude', choice.long)
+            choice.lat = data.get('latitude', choice.lat)
 
-async def values(websocket):
-    def choose_stop(i):
-        return i
+            # Define stops: start (bus current) + fixed stops
+            stops = [[choice.long, choice.lat], [76.3922, 30.33625], [76.41, 30.35], [76.6073, 30.4693], [76.75, 30.55]]
 
-    coords = await websocket.recv()
-    start=[choice.long,choice.lat]
-    stops=[start,[76.3922, 30.33625], [76.41, 30.35],[76.6073, 30.4693], [76.75, 30.55]]#places where bus will stop
+            # Get updated distance data
+            distances = get_distances(stops)
 
-    headers = {"Authorization":"eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjU5YjczMDZjNTI5MjQ2NThiZGFlYzA5Yjg0YWFiZGQ0IiwiaCI6Im11cm11cjY0In0="
-    ,"Content-Type": "application/json"}
+            # Example processing: estimated speed and ETA calculation (customize as needed)
+            speed = data.get('speed')
+            if not speed or speed == 0:  # if speed unavailable, assign default
+                speed = 30  # assuming 30 km/h default speed
 
-    initial_distance=None
+            # Calculate ETA to last stop in minutes
+            distance_to_end = distances[-1]
+            eta_minutes = (distance_to_end / speed) * 60 if speed else None
 
-    data={"locations":stops,"id":"request","metrics":["distance"],"sources":[0],"units":"km"}
-    request=requests.post("https://api.openrouteservice.org/v2/matrix/driving-car",headers=headers,json=data)
-    content=request.json()
+            # Build data to broadcast
+            broadcast_data = {
+                "latitude": choice.lat,
+                "longitude": choice.long,
+                "speed": speed,
+                "eta": round(eta_minutes, 1) if eta_minutes else None,
+                "timestamp": data.get('timestamp')
+            }
 
-    distance=[i for i in content['distances'][0]]
+            # Broadcast updated data to all other clients
+            for client in clients:
+                if client != websocket and client.open:
+                    await client.send(json.dumps(broadcast_data))
 
-    if initial_distance is None:
-        initial_distance=distance
+    except websockets.ConnectionClosed:
+        pass
+    finally:
+        clients.remove(websocket)
 
-    def progression():
-        progress=[initial-current for current,initial in zip(distance,initial_distance)]
-        progress_percentage=(progress(len(progress))/initial_distance(len(initial_distance)))*100
-        return progress_percentage
+async def main():
+    async with websockets.serve(handler, "0.0.0.0", 8765):
+        print("WebSocket Server listening on port 8765...")
+        await asyncio.Future()  # run forever
 
-    speed=2
-
-    def stop_details(i):
-        dist=distance[i]
-        time=dist/speed
-        return time,dist
-
+if __name__ == "__main__":
+    bus_choice(bus1)  # initialize choice bus
+    asyncio.run(main())
