@@ -8,46 +8,28 @@
 let socket, watchId;
 
 function start() {
-  navigator.permissions.query({name:'geolocation'}).then(function(result) {
-    if (result.state === 'granted') {
-      // Permission already granted, start watching without prompt
-      startWatchPosition();
-    } else if (result.state === 'prompt') {
-      // First time, will prompt
-      startWatchPosition();
-    } else if (result.state === 'denied') {
-      alert('Geolocation permission denied. Please enable it manually.');
-    }
-
-    // Listen to permission state changes
-    result.onchange = function() {
-      if (result.state === 'granted') {
-        startWatchPosition();
-      }
-    };
-  });
-}
-
-function startWatchPosition() {
-  socket = new WebSocket('ws://<YOUR IP ADDRESS>:8080');// put ur own ip
+  socket = new WebSocket('ws://117.203.246.41:5000'); // use your server IP
 
   socket.onopen = () => {
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            speed: pos.coords.speed
-          }));
-        }
-      },
-      (err) => {
-        console.error('Geolocation error:', err);
-      },
-      { enableHighAccuracy: true }
-    );
+    if ('geolocation' in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+            }));
+          }
+        },
+        (err) => {
+          console.error('Geolocation error:', err);
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert('Geolocation not supported');
+    }
   };
 
   socket.onclose = () => {
@@ -58,7 +40,6 @@ function startWatchPosition() {
     console.error('WebSocket error:', err);
   };
 }
-
 </script>
 
 </body>
