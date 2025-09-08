@@ -1,55 +1,99 @@
+# visit UG Activity Space-I
 import asyncio
-import json
 import requests
 import websockets
+from websockets.asyncio.server import serve
 
-clients = set()  # Track connected clients
+async def values(websocket):
+    path=websocket.request.path
+    if path== "/bus":
+        coords = await websocket.recv()
+        print(coords)
+    if path=="/client":
+        await websocket.send(coords)
+        print("coordinates sent")
 
-# ... Bus class and other code remains unchanged ...
+class bus:
+    def __init__(self,stop_count, long, lat,stops_list=[]):
+        self.stop_count=stop_count
+        self.long=long
+        self.lat=lat
+        self.stops_list=stops_list
+    
+    @property
+    def stops__list(self):
+        return self.stops_list
+    
+    @stops__list.setter#for adding more stops in total stops
+    def stops__list(self,*args):
+        #assert len(args)==1
+        new_stop=[[long,lat] for long,lat in args]
+        if self.stops_list==[]:
+            self.stops_list=new_stop
+        else:
+            self.stops_list.append(new_stop[0])
+        return self.stops_list
 
-async def handler(websocket):  # Remove 'path' argument
-    clients.add(websocket)
-    try:
-        async for message in websocket:
-            data = json.loads(message)
-            # Update bus details etc.
-            choice.long = data.get('longitude', choice.long)
-            choice.lat = data.get('latitude', choice.lat)
+global bus1
+bus1=bus(4, 76.369777, 30.354376)
 
-            stops = [[choice.long, choice.lat], [76.3922, 30.33625], [76.41, 30.35], [76.6073, 30.4693], [76.75, 30.55]]
 
-            distances = get_distances(stops)
+def bus_choice(bus_):
+    global choice
+    choice=bus(bus_.stop_count,bus_.long,bus_.lat)
+    return choice
 
-            speed = data.get('speed')
-            if not speed or speed == 0:
-                speed = 30
+bus_choice(bus1)
 
-            distance_to_end = distances[-1]
-            eta_minutes = (distance_to_end / speed) * 60 if speed else None
+choice.stops__list=(76.3922, 30.33625)
 
-            broadcast_data = {
-                "latitude": choice.lat,
-                "longitude": choice.long,
-                "speed": speed,
-                "eta": round(eta_minutes, 1) if eta_minutes else None,
-                "timestamp": data.get('timestamp')
-            }
+start=[choice.long,choice.lat]
+stops=[start,[76.3922, 30.33625], [76.41, 30.35],[76.6073, 30.4693], [76.75, 30.55]]#places where bus will stop
 
-            # Broadcast to all clients (excluding sender if desired)
-            for client in clients:
-                if client != websocket and not client.closed:
-                    await client.send(json.dumps(broadcast_data))
+headers = {"Authorization":"eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjU5YjczMDZjNTI5MjQ2NThiZGFlYzA5Yjg0YWFiZGQ0IiwiaCI6Im11cm11cjY0In0="
+,"Content-Type": "application/json"}
 
-    except websockets.ConnectionClosed:
-        pass
-    finally:
-        clients.remove(websocket)
+initial_distance=None
+
+data={"locations":stops,"id":"request","metrics":["distance"],"sources":[0],"units":"km"}
+request=requests.post("https://api.openrouteservice.org/v2/matrix/driving-car",headers=headers,json=data)
+content=request.json()
+
+distance=[i for i in content['distances'][0]]
+
+if initial_distance is None:
+    initial_distance=distance
+
+def distance_percentage():
+    total_distance=initial_distance[len(initial_distance)]
+    distance_percentage=[(stop_distance/total_distance)*100 for stop_distance in initial_distance]
+    return distance_percentage
+
+'''
+def progression():
+    progress=[initial-current for current,initial in zip(distance,initial_distance)]
+    progress_percentage=(progress(len(progress))/initial_distance(len(initial_distance)))*100
+    return progress_percentage'''
+
+speed=2
+
+def stop_details(i):
+    dist=distance[i]
+    time=dist/speed
+    return time,dist
+
+
 
 async def main():
-    async with websockets.serve(handler, "0.0.0.0", 8765):  # handler takes only websocket now
-        print("WebSocket Server listening on port 8765...")
-        await asyncio.Future()  # run forever
+    async with serve(values,"0.0.0.0", 5000) as server:
+        await server.serve_forever()
 
-if __name__ == "__main__":
-    bus_choice(bus1)
+if __name__=="__main__":
     asyncio.run(main())
+
+#ascending order for distances
+json={distance=choice.distance,time=choice.time,percent_covered=choice.distance_percentage,}
+#distance will be a lsit of stops in correct order of their distance from least to most
+#time will be an integer in terms of hours
+#percent_covered is the percentage distance 
+
