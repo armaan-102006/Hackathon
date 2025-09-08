@@ -793,7 +793,6 @@
             updateETA();
         }
         function onGeoError(err) { $('geoHint').textContent = `${STR[LANG].hint} (${err.message})`; }
-        function startGeo() { if (!('geolocation' in navigator)) return; navigator.geolocation.watchPosition(onGeo, onGeoError, { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 }); }
         function startDemoIfIdle() { setTimeout(() => { if (String(speedVal.textContent).trim() !== '--') return; let t = 0, lat = 23.025, lon = 72.571; setInterval(() => { t += 1.5; lat += 0.0008; lon += 0.0005 * Math.sin(t / 5); onGeo({ coords: { latitude: lat, longitude: lon, accuracy: 15, heading: 90, speed: null }, timestamp: Date.now() }); speedVal.textContent = '40'; speedFabVal.textContent = '40 km/h'; }, 1500); }, 3000); }
         const chatToggle = $('chatToggle'), chatBox = $('chatBox'), chatClose = $('chatClose'), chatForm = $('chatForm'), chatBody = $('chatBody'), chatMsg = $('chatMsg');
         chatToggle.onclick = () => chatBox.classList.toggle('open');
@@ -859,7 +858,6 @@
 </body>
 
 </html>
-
 
 
 
