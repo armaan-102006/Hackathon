@@ -231,7 +231,6 @@
             border-radius: 4px;
             background: linear-gradient(180deg, var(--rail), #7dd3fc);
             z-index: 1;
-            /* top and height will be set by js */
         }
 
         .stop {
@@ -271,6 +270,27 @@
             border: 3px solid var(--rail);
             box-shadow: 0 0 0 3px rgba(34, 195, 169, .25);
             z-index: 2;
+        }
+
+        .bus-icon {
+            position: absolute;
+            left: 10px;
+            width: 12px;
+            height: 12px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 0 8px var(--accent);
+            animation: moveBus 40s linear infinite;
+        }
+
+        @keyframes moveBus {
+            from {
+                transform: translateY(0);
+            }
+            to {
+                transform: translateY(300px);
+            }
         }
 
         .row {
@@ -338,7 +358,6 @@
             grid-template-columns: repeat(3, minmax(0, 1fr));
             grid-template-rows: repeat(2, minmax(0, 1fr));
             gap: 12px;
-
         }
 
         .stat {
@@ -407,7 +426,6 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, .3);
             font-size: 80%;
         }
-
 
         .em-menu {
             position: fixed;
@@ -600,20 +618,19 @@
             <button id="themeToggle">🌙</button>
             <span class="chip" id="liveBadge"><span class="spin" aria-hidden="true"></span> LIVE</span>
         </div>
-
     </header>
+    
     <main>
         <section class="panel" aria-labelledby="routeTitle">
             <h2 id="routeTitle">Route timeline</h2>
             <div class="timeline" id="timeline" role="list">
                 <div class="axis" aria-hidden="true"></div>
+                <div id="bus-icon" class="bus-icon"></div>
             </div>
         </section>
         <aside class="panel" aria-labelledby="detailsTitle">
             <h2 id="detailsTitle">Details</h2>
             <div class="grid">
-
-
                 <div class="stat">
                     <div class="label" id="lblSpeed">Current speed</div>
                     <div class="value"><span id="speedVal">--</span> km/h</div>
@@ -622,31 +639,28 @@
                     <div class="label" id="lblEta">ETA to end</div>
                     <div class="value" id="etaVal">--</div>
                 </div>
-                <!-- Add these new stats -->
                 <div class="stat">
-                    <div class="label">Distance (km)</div>
+                    <div class="label" id="distLabel">Distance (km)</div>
                     <div class="value" id="distanceVal">--</div>
                 </div>
                 <div class="stat">
-                    <div class="label">Time (h)</div>
+                    <div class="label" id="timeLabel">Time (h)</div>
                     <div class="value" id="timeVal">--</div>
                 </div>
                 <div class="stat">
-                    <div class="label">Route Covered (%)</div>
+                    <div class="label" id="coveredLabel">Route Covered (%)</div>
                     <div class="value" id="percentVal">--</div>
                 </div>
                 <div class="stat">
-                    <div class="label">Stops</div>
+                    <div class="label" id="stopsLabel">Stops</div>
                     <div class="value" id="stopCountVal">--</div>
                 </div>
-            </div>
-
-
             </div>
             <p class="label" style="margin-top:10px" id="geoHint">Pick a bus, then choose Start and End stops; allow
                 location for live speed.</p>
         </aside>
     </main>
+    
     <button class="em-trigger" id="emBtn" aria-haspopup="true" aria-expanded="false">⚠ Emergency</button>
     <div class="em-menu" id="emMenu" role="menu" aria-label="Emergency contacts">
         <div class="em-item" role="menuitem">
@@ -660,11 +674,13 @@
                 id="busAct">Call</a>
         </div>
     </div>
+    
     <button class="fab" id="speedFab" aria-live="polite">
         <div><small id="speedSmall">Speed</small>
             <div class="big" id="speedFabVal">-- km/h</div>
         </div>
     </button>
+    
     <button class="chat-fab" id="chatToggle" aria-label="Open chatbot"><svg viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2">
             <path d="M21 15a4 4 0 0 1-4 4H9l-6 4 2-6a8 8 0 1 1 16-2Z" />
@@ -672,6 +688,7 @@
             <circle cx="13" cy="13" r="1" />
             <circle cx="17" cy="13" r="1" />
         </svg></button>
+        
     <section class="chat" id="chatBox" aria-label="Chatbot" aria-live="polite">
         <div class="chat-header">
             <div class="chat-title"><span class="chat-logo" aria-hidden="true"></span><span
@@ -685,6 +702,7 @@
         <form class="chat-input" id="chatForm"><input type="text" id="chatMsg" placeholder="Type message..."
                 autocomplete="off" /><button type="submit" id="sendBtn">Send</button></form>
     </section>
+    
     <script>
         const BUSES = [{ id: 'B1', name: 'Bus 1' }, { id: 'B2', name: 'Bus 2' }, { id: 'B3', name: 'Bus 3' }];
         const STOPS = {
@@ -696,18 +714,39 @@
         const busSel = $('busSel'), startSel = $('startSel'), endSel = $('endSel'), timeline = $('timeline');
         const speedVal = $('speedVal'), speedFabVal = $('speedFabVal'), etaVal = $('etaVal');
         const themeToggle = document.getElementById('themeToggle');
+        
         themeToggle.addEventListener('click', () => {
             const current = document.documentElement.getAttribute('data-theme') || 'dark';
             const next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
             themeToggle.textContent = next === 'light' ? '☀️' : '🌙';
         });
+        
         const STR = {
-            en: { title: 'Bus Route Live', bus: 'Bus', start: 'Start', end: 'End', route: 'Route timeline', details: 'Details', speed: 'Current speed', eta: 'ETA to end', speedSmall: 'Speed', hint: 'Pick a bus, then choose Start and End stops; allow location for live speed.' },
-            hi: { title: 'बस रूट लाइव', bus: 'बस', start: 'शुरुआत', end: 'अंत', route: 'रूट टाइमलाइन', details: 'विवरण', speed: 'वर्तमान गति', eta: 'अंत तक ETA', speedSmall: 'गति', hint: 'बस चुनें और स्टार्ट/एंड स्टॉप चुनें; लाइव गति के लिए लोकेशन अनुमति दें।' },
-            pa: { title: 'ਬਸ ਰੂਟ ਲਾਈਵ', bus: 'ਬਸ', start: 'ਸ਼ੁਰੂ', end: 'ਅੰਤ', route: 'ਰੂਟ ਟਾਈਮਲਾਈਨ', details: 'ਵੇਰਵੇ', speed: 'ਮੌਜੂਦਾ ਗਤੀ', eta: 'ਅੰਤ ਤੱਕ ETA', speedSmall: 'ਸਪੀਡ', hint: 'ਬਸ ਚੁਣੋ ਅਤੇ ਸ਼ੁਰੂ/ਅੰਤ ਸਟਾਪ ਚੁਣੋ; ਲਾਈਵ ਸਪੀਡ ਲਈ ਲੋਕੇਸ਼ਨ ਇਜਾਜ਼ਤ ਦਿਓ।' }
+            en: {
+                title: 'Bus Route Live', bus: 'Bus', start: 'Start', end: 'End', route: 'Route timeline', details: 'Details',
+                speed: 'Current speed', eta: 'ETA to end', speedSmall: 'Speed', hint: 'Pick a bus, then choose Start and End stops; allow location for live speed.',
+                distLabel: 'Distance (km)', timeLabel: 'Time (h)', coveredLabel: 'Route Covered (%)', stopsLabel: 'Stops',
+                emBtn: '⚠ Emergency', polLbl: 'Police', hosLbl: 'Hospital', busLbl: 'Bus Service', call: 'Call',
+                chatTitle: 'Chatbot', chatWelcome: 'Hi! Ask about routes, stops, or ETAs.', chatPlaceholder: 'Type message...', send: 'Send'
+            },
+            hi: {
+                title: 'बस रूट लाइव', bus: 'बस', start: 'शुरुआत', end: 'अंत', route: 'रूट टाइमलाइन', details: 'विवरण',
+                speed: 'वर्तमान गति', eta: 'अंत तक ETA', speedSmall: 'गति', hint: 'बस चुनें और स्टार्ट/एंड स्टॉप चुनें; लाइव गति के लिए लोकेशन अनुमति दें।',
+                distLabel: 'दूरी (किमी)', timeLabel: 'समय (घंटा)', coveredLabel: 'तय रूट (%)', stopsLabel: 'स्टॉप',
+                emBtn: '⚠ आपातकाल', polLbl: 'पुलिस', hosLbl: 'अस्पताल', busLbl: 'बस सेवा', call: 'कॉल करें',
+                chatTitle: 'चैटबॉट', chatWelcome: 'नमस्ते! रूट, स्टॉप, या ETA के बारे में पूछें।', chatPlaceholder: 'संदेश टाइप करें...', send: 'भेजें'
+            },
+            pa: {
+                title: 'ਬਸ ਰੂਟ ਲਾਈਵ', bus: 'ਬਸ', start: 'ਸ਼ੁਰੂ', end: 'ਅੰਤ', route: 'ਰੂਟ ਟਾਈਮਲਾਈਨ', details: 'ਵੇਰਵੇ',
+                speed: 'ਮੌਜੂਦਾ ਗਤੀ', eta: 'ਅੰਤ ਤੱਕ ETA', speedSmall: 'ਸਪੀਡ', hint: 'ਬਸ ਚੁਣੋ ਅਤੇ ਸ਼ੁਰੂ/ਅੰਤ ਸਟਾਪ ਚੁਣੋ; ਲਾਈਵ ਸਪੀਡ ਲਈ ਲੋਕੇਸ਼ਨ ਇਜਾਜ਼ਤ ਦਿਓ।',
+                distLabel: 'ਦੂਰੀ (ਕਿਮੀ)', timeLabel: 'ਸਮਾਂ (ਘੰਟਾ)', coveredLabel: 'ਤੈਅ ਰੂਟ (%)', stopsLabel: 'ਸਟਾਪ',
+                emBtn: '⚠ ਐਮਰਜੈਂਸੀ', polLbl: 'ਪੁਲਿਸ', hosLbl: 'ਹਸਪਤਾਲ', busLbl: 'ਬੱਸ ਸੇਵਾ', call: 'ਕਾਲ ਕਰੋ',
+                chatTitle: 'ਚੈਟਬੋਟ', chatWelcome: 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਰੂਟ, ਸਟਾਪ, ਜਾਂ ETA ਬਾਰੇ ਪੁੱਛੋ।', chatPlaceholder: 'ਸੁਨੇਹਾ ਟਾਈਪ ਕਰੋ...', send: 'ਭੇਜੋ'
+            }
         };
         let LANG = 'en';
+        
         function applyLang() {
             const T = STR[LANG];
             document.documentElement.lang = LANG;
@@ -719,17 +758,35 @@
             $('detailsTitle').textContent = T.details;
             $('lblSpeed').textContent = T.speed;
             $('lblEta').textContent = T.eta;
+            $('distLabel').textContent = T.distLabel;
+            $('timeLabel').textContent = T.timeLabel;
+            $('coveredLabel').textContent = T.coveredLabel;
+            $('stopsLabel').textContent = T.stopsLabel;
             $('speedSmall').textContent = T.speedSmall;
             $('geoHint').textContent = T.hint;
+            $('emBtn').textContent = T.emBtn;
+            $('polLbl').textContent = T.polLbl;
+            $('hosLbl').textContent = T.hosLbl;
+            $('busLbl').textContent = T.busLbl;
+            $('polAct').textContent = T.call;
+            $('hosAct').textContent = T.call;
+            $('busAct').textContent = T.call;
+            $('chatTitle').textContent = T.chatTitle;
+            $('chatWelcome').textContent = T.chatWelcome;
+            $('chatMsg').placeholder = T.chatPlaceholder;
+            $('sendBtn').textContent = T.send;
         }
+        
         $('langSel').addEventListener('change', e => {
             LANG = e.target.value;
             applyLang();
         });
+        
         function initSelects() {
             busSel.innerHTML = BUSES.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
             loadStops(busSel.value);
         }
+        
         function loadStops(busId) {
             const stops = STOPS[busId] || [];
             const opts = stops.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -743,11 +800,13 @@
             updateRangeHighlight();
             updateETA();
         }
+        
         busSel.addEventListener('change', e => loadStops(e.target.value));
         [startSel, endSel].forEach(sel => sel.addEventListener('change', () => {
             updateRangeHighlight();
             updateETA();
         }));
+        
         let currentStops = [];
         function renderStops(stops) {
             currentStops = stops;
@@ -770,6 +829,7 @@
                 axis.style.height = (axisBottom - axisTop) + "px";
             }
         }
+        
         function updateRangeHighlight() {
             const startId = startSel.value, endId = endSel.value;
             const ids = currentStops.map(s => s.id);
@@ -777,6 +837,7 @@
             const [a, b] = i0 <= i1 ? [i0, i1] : [i1, i0];
             timeline.querySelectorAll('.stop').forEach((el, idx) => el.classList.toggle('in-range', idx >= a && idx <= b));
         }
+        
         const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
         function calcDistanceKm(aId, bId) {
             const idx = currentStops.findIndex(s => s.id === aId);
@@ -786,6 +847,7 @@
             const kmA = currentStops[a].km, kmB = currentStops[b].km;
             return Math.max(0, kmB - kmA);
         }
+        
         function updateETA() {
             const startId = startSel.value, endId = endSel.value;
             const dist = calcDistanceKm(startId, endId);
@@ -795,6 +857,7 @@
             const endLabel = document.getElementById(`eta-${endId}`);
             if (endLabel) endLabel.textContent = `ETA ${minutes} min`;
         }
+        
         const kmh = mps => (mps * 3.6).toFixed(0);
         let prev = null;
         function toRad(x) { return x * Math.PI / 180; }
@@ -804,6 +867,7 @@
             const h = Math.sin(dLat / 2) ** 2 + Math.cos(A) * Math.cos(B) * Math.sin(dLon / 2) ** 2;
             return 2 * R * Math.asin(Math.sqrt(h));
         }
+        
         function onGeo(pos) {
             const c = pos.coords;
             let v = c.speed != null ? kmh(c.speed) : null;
@@ -818,8 +882,33 @@
             prev = { lat: c.latitude, lon: c.longitude, t: pos.timestamp };
             updateETA();
         }
+        
         function onGeoError(err) { $('geoHint').textContent = `${STR[LANG].hint} (${err.message})`; }
-        function startDemoIfIdle() { setTimeout(() => { if (String(speedVal.textContent).trim() !== '--') return; let t = 0, lat = 23.025, lon = 72.571; setInterval(() => { t += 1.5; lat += 0.0008; lon += 0.0005 * Math.sin(t / 5); onGeo({ coords: { latitude: lat, longitude: lon, accuracy: 15, heading: 90, speed: null }, timestamp: Date.now() }); speedVal.textContent = '40'; speedFabVal.textContent = '40 km/h'; }, 1500); }, 3000); }
+        function startGeo() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(onGeo, onGeoError, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 5000
+                });
+            }
+        }
+        
+        function startDemoIfIdle() { 
+            setTimeout(() => { 
+                if (String(speedVal.textContent).trim() !== '--') return; 
+                let t = 0, lat = 23.025, lon = 72.571; 
+                setInterval(() => { 
+                    t += 1.5; 
+                    lat += 0.0008; 
+                    lon += 0.0005 * Math.sin(t / 5); 
+                    onGeo({ coords: { latitude: lat, longitude: lon, accuracy: 15, heading: 90, speed: null }, timestamp: Date.now() }); 
+                    speedVal.textContent = '40'; 
+                    speedFabVal.textContent = '40 km/h'; 
+                }, 1500); 
+            }, 3000); 
+        }
+        
         const chatToggle = $('chatToggle'), chatBox = $('chatBox'), chatClose = $('chatClose'), chatForm = $('chatForm'), chatBody = $('chatBody'), chatMsg = $('chatMsg');
         chatToggle.onclick = () => chatBox.classList.toggle('open');
         chatClose.onclick = () => chatBox.classList.remove('open');
@@ -834,17 +923,19 @@
                 chatBody.scrollTop = chatBody.scrollHeight;
             }, 600);
         });
+        
         const emBtn = $('emBtn'), emMenu = $('emMenu');
         function closeMenu() { emMenu.classList.remove('open'); emBtn.setAttribute('aria-expanded', 'false'); }
         function toggleMenu() { const open = !emMenu.classList.contains('open'); if (open) { emMenu.classList.add('open'); emBtn.setAttribute('aria-expanded', 'true'); } else { closeMenu(); } }
         emBtn.addEventListener('click', e => { e.stopPropagation(); toggleMenu(); });
         document.addEventListener('click', e => { if (!emMenu.contains(e.target) && e.target !== emBtn) closeMenu(); });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+        
         applyLang();
         initSelects();
         startGeo();
         startDemoIfIdle();
-        // Replace with your Python server IP and port
+        
         const ws = new WebSocket('wss://953638f3a86d.ngrok-free.app');
 
         ws.addEventListener("open", () => {
@@ -855,18 +946,28 @@
             try {
                 const data = JSON.parse(event.data);
 
-                // Update speed display
                 if (data.speed !== undefined && data.speed !== null) {
                     const speed = Number(data.speed);
                     speedVal.textContent = isFinite(speed) ? speed.toFixed(0) : '--';
                     speedFabVal.textContent = isFinite(speed) ? `${speed.toFixed(0)} km/h` : '-- km/h';
                 }
 
-                // Update ETA display if available
                 if (data.eta !== undefined && data.eta !== null) {
                     etaVal.textContent = `${data.eta} min`;
                 }
 
+                if (data.distance !== undefined && Array.isArray(data.distance)) {
+                    document.getElementById('distanceVal').textContent = data.distance.join(", ");
+                }
+                if (data.time !== undefined) {
+                    document.getElementById('timeVal').textContent = data.time;
+                }
+                if (data.percent_covered !== undefined && Array.isArray(data.percent_covered)) {
+                    document.getElementById('percentVal').textContent = data.percent_covered.join(", ");
+                }
+                if (data.stop_count !== undefined) {
+                    document.getElementById('stopCountVal').textContent = data.stop_count;
+                }
 
             } catch (err) {
                 console.error("Error parsing WebSocket message:", err);
@@ -882,5 +983,4 @@
         });
     </script>
 </body>
-
 </html>
