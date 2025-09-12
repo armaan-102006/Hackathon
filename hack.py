@@ -1,3 +1,4 @@
+# visit UG Activity Space-I
 import asyncio
 import requests
 import websockets
@@ -16,7 +17,7 @@ async def bus_handler(websocket):
         coords=json.loads(coords)
         print(coords)
         #later we will assign different id's to each  
-        bus1=bus(4,int(coords['longitude']), int(coords['latitude']),[[coords['longitude'],coords['latitude']],[76.3922, 30.33625], [76.41, 30.35],[76.6073, 30.4693], [76.75, 30.55]])
+        bus1=bus(4,coords['longitude'], coords['latitude'],coords['speed'],[[coords['longitude'],coords['latitude']],[76.359376, 30.353063], [76.365075, 30.353664],[76.367698, 30.353972], [76.371361, 30.354414]])
         bus_choice(bus1)
         
         headers = {"Authorization":"eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjU5YjczMDZjNTI5MjQ2NThiZGFlYzA5Yjg0YWFiZGQ0IiwiaCI6Im11cm11cjY0In0="
@@ -27,6 +28,7 @@ async def bus_handler(websocket):
         content=request.json()
 
         distance=[i for i in content['distances'][0]]
+        print(distance)
         set_intial_distance()
         distance_percent=distance_percentage()
         progress=progression()
@@ -37,9 +39,10 @@ async def bus_handler(websocket):
             times.append(tim)
             dist.append(dista)
 
-        xyz={"distance":dist,"time":times,"percent_covered":distance_percent,"stop_count":choice.stop_count}
+        xyz={"distance":dist,"time":times,"percent_covered":distance_percent,'progress_percentage':progress,"stop_count":choice.stop_count,'stops':{'type':'stops','stop_coords':choice.stops_list}}
 
         if client_connections:
+            print(xyz)
             await asyncio.gather(*(client.send(json.dumps(xyz)) for client in client_connections))
             print("Forwarded to clients")
     await websocket.wait_closed()
@@ -52,6 +55,11 @@ async def client_handler(websocket):
     finally:
         print("client diconnected")
         client_connections.remove(websocket)
+'''
+async def map_handler(websocket):
+    global choice
+    print("map added")
+    '''
 
 async def handler(websocket):
     path=websocket.request.path
@@ -59,18 +67,21 @@ async def handler(websocket):
         await client_handler(websocket)
     elif path=="/bus":
         await bus_handler(websocket)
+    '''elif path=='/map':
+        await map_handler(websocket)'''
 
 
 class bus:
-    def __init__(self,stop_count, long, lat,stops_list=None):
+    def __init__(self,stop_count, long, lat,speed,stops_list=None):
         self.stop_count=stop_count
         self.long=long
         self.lat=lat
         self.stops_list=stops_list
+        self.speed=speed
     
 def bus_choice(bus_):
     global choice
-    choice=bus(bus_.stop_count,bus_.long,bus_.lat,bus_.stops_list)
+    choice=bus(bus_.stop_count,bus_.long,bus_.lat,bus_.speed,bus_.stops_list)
     return choice
 
 def set_intial_distance():
@@ -91,11 +102,15 @@ def progression():
     return progress_percentage
 
 def stop_details(i):
-    speed=2
+    speed=choice.speed
     dist=distance[i]
-    time=dist/speed
-    return time,dist
-
+    try:
+        time=dist/speed
+    except ZeroDivisionError:
+        time="--"
+        return time ,dist
+    else:
+        return time ,dist
 
 
 async def main():
@@ -104,3 +119,8 @@ async def main():
 
 if __name__=="__main__":
     asyncio.run(main())
+
+#ascending order for distances
+#distance will be a lsit of stops in correct order of their distance from least to most
+#time will be an integer in terms of hours
+#distance_percentage is the percentage of distance that a particular stop is at from the beginning out of total distance i.e. distance of last stop from beginning and it will be in list format and similar to distances will be in the correct required order.
